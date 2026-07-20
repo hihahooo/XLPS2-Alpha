@@ -1,0 +1,14 @@
+{
+  "projectName": "XLPS2-Alpha",
+  "linkedRepository": {
+    "provider": "github",
+    "url": "https://github.com/hihahooo/XLPS2-Alpha",
+    "defaultBranch": "main",
+    "remote": "git@github.com:hihahooo/XLPS2-Alpha.git",
+    "auth": "ssh"
+  },
+  "enabledPlugins": {
+    "hot-skills@codebuddy-plugins-official": true,
+    "agent-browser@codebuddy-plugins-official": true
+  }
+}
