@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "github-remote": {
+      "args": [],
+      "print": true,
+      "url": "http://github-mcp.agent-gateway.auth-proxy.local/mcp",
+      "type": "http"
+    }
+  },
+  "disabledMcpServers": []
+}

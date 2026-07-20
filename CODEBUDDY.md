@@ -39,6 +39,14 @@ XLPS2-Alpha/
 - GitHub 连接器已连接（用于只读 API 读取）；写操作（push 等）走 SSH 密钥。
 - SSH 配置见 `~/.ssh/config`：`github.com` → `ssh.github.com:443`，IdentityFile `~/.ssh/id_ed25519`。
 
+## GitHub 操作（MCP）
+
+仓库已通过项目级 `.mcp.json` 挂载 `github-remote` MCP 服务器，使 CodeBuddy 可直接在本仓库内**建/查 Pull Request、Issues** 等。
+
+- 配置位置：仓库根 `.mcp.json`（`mcpServers.github-remote`，HTTP 传输，指向 `github-mcp.agent-gateway.auth-proxy.local`）。
+- **使用前需在 CodeBuddy 连接器面板批准 `github-remote`**（GitHub 已连接，批准即生效）。
+- 批准后，CodeBuddy 可调用 GitHub MCP 工具对本仓库执行 PR / Issue 相关操作。
+
 ## 常见操作
 
 ```bash
