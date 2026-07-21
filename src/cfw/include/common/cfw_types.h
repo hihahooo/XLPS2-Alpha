@@ -85,7 +85,7 @@ typedef struct {
     int16_t  speed_mm_s;               /* 3 */
     uint8_t  battery_soc;              /* 4 */
     uint32_t track_id;                 /* 5  0=无码匿名 */
-    cfw_task_status_t task_status;     /* 6  禁 task_state 别名 */
+    cfw_task_status_t task_status;     /* 6  字段名统一为 task_status（禁止别名） */
     uint8_t  task_progress_pct;        /* 7 */
     uint16_t fault_code;               /* 8 */
     uint8_t  fault_level;              /* 9  1-4 (ADR-006) */

@@ -120,3 +120,49 @@ def assert_transport_isolation(dictionary_fields: set) -> None:
     leaked = config.TRANSPORT_PRIVATE_FIELDS & dictionary_fields
     if leaked:
         raise SchemaError(f"传输专有字段泄漏进数据字典: {leaked}")
+
+
+# ---------------------------------------------------------------------------
+# ADR-003 current_state 层级编码（与 HMI contract/types.ts 逐字节一致）
+# ---------------------------------------------------------------------------
+# current_state 为 16 位 uint16，三段不重叠：
+#   sub_state  = bits 0–7  （8 位，掩码 0x00FF）
+#   top_state  = bits 8–13 （6 位，掩码 0x3F）
+#   region     = bits 14–15（2 位，掩码 0x03）
+# 编码公式：(region<<14) | (top_state<<8) | sub_state
+# 哨兵：0xFFFF = 未初始化。
+# 跨模块门禁样例：(2<<14)|(5<<8)|3 == 0x8503。
+CURRENT_STATE_SENTINEL = 0xFFFF
+_REGION_MASK = 0x03
+_TOP_STATE_MASK = 0x3F
+_SUB_STATE_MASK = 0x00FF
+
+
+def encode_current_state(region: int, top_state: int, sub_state: int) -> int:
+    """按 ADR-003 编码 ``(region<<14)|(top_state<<8)|sub_state``。"""
+    if not isinstance(region, int) or not (0 <= region <= _REGION_MASK):
+        raise SchemaError(f"region 须 0..{_REGION_MASK}，收到 {region!r}")
+    if not isinstance(top_state, int) or not (0 <= top_state <= _TOP_STATE_MASK):
+        raise SchemaError(f"top_state 须 0..{_TOP_STATE_MASK}，收到 {top_state!r}")
+    if not isinstance(sub_state, int) or not (0 <= sub_state <= _SUB_STATE_MASK):
+        raise SchemaError(f"sub_state 须 0..{_SUB_STATE_MASK}，收到 {sub_state!r}")
+    return (
+        (region & _REGION_MASK) << 14
+        | (top_state & _TOP_STATE_MASK) << 8
+        | (sub_state & _SUB_STATE_MASK)
+    )
+
+
+def decode_current_state(value: int) -> "tuple[int, int, int]":
+    """按 ADR-003 解码为 (region, top_state, sub_state)。
+
+    0xFFFF 哨兵表示未初始化，解码无意义，抛 ``SchemaError``。
+    """
+    if not isinstance(value, int) or value < 0 or value > 0xFFFF:
+        raise SchemaError(f"current_state 须为 0..0xFFFF 的 uint16，收到 {value!r}")
+    if value == CURRENT_STATE_SENTINEL:
+        raise SchemaError("current_state=0xFFFF 表示未初始化，不可解码")
+    region = (value >> 14) & _REGION_MASK
+    top_state = (value >> 8) & _TOP_STATE_MASK
+    sub_state = value & _SUB_STATE_MASK
+    return region, top_state, sub_state

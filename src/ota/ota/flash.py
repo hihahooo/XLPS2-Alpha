@@ -1,11 +1,12 @@
 """Flash 物理分区抽象。
 
 云端 OTA 服务本身不直接擦写设备 Flash；此处抽象用于：
-1. 在单测中以 ``InMemoryFlash`` 精确模拟 GD25Q127 ×2 双芯片物理分区行为；
+1. 在单测中以 ``InMemoryFlash`` 精确模拟 STM32H743IIT6 **内部** Flash 的 A/B
+   逻辑双分区行为（ADR-005：单芯片内 A/B 逻辑双分区）；
 2. 为设备端 OTA 客户端（CFW，L5 配置运维层）提供可移植的接口契约参考。
 
-GD25Q127：16MB/芯片，4KB 扇区（0x1000），页 256B。本项目用双芯片做 A/B
-物理双分区（ADR-005）。
+STM32H743IIT6 内部 Flash：2MB 窗口（0x08000000 起），4KB 扇区（0x1000）。
+A/B 与 FLAG 均为该内部 Flash 内的逻辑分区（ADR-005）。
 """
 from __future__ import annotations
 

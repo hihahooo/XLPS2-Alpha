@@ -7,7 +7,7 @@
 - versioning    : 版本单调（单调递增整数，R4）
 - framing       : 固件包封帧（header + SHA256 + 签名）
 - chunking      : 分片（seq + CRC32）与断点续传（R-断电续传）
-- flash         : GD25Q127 物理分区抽象（含内存实现，供单测）
+- flash         : STM32 内部 Flash 分区抽象（含内存实现，供单测）
 - flag          : FLAG 扇区双备份（主 0x000 / 备 0x200，各 CRC-32），自愈（R15）
 - ab_orchestrator : A/B 双分区状态机与回滚编排（R5 / R7）
 - health_monitor  : 健康观测窗（HEALTH_WINDOW_S）确认与超时
@@ -33,7 +33,16 @@ from .ab_orchestrator import (
 )
 from .health_monitor import HealthWindow, HealthStatus
 from .store import FirmwareStore, FirmwareMeta
-from .schema import SchemaError, validate_ota_cmd, validate_ota_data, validate_ota_progress, validate_ota_result
+from .schema import (
+    SchemaError,
+    validate_ota_cmd,
+    validate_ota_data,
+    validate_ota_progress,
+    validate_ota_result,
+    encode_current_state,
+    decode_current_state,
+    CURRENT_STATE_SENTINEL,
+)
 from .service import OtaService, OtaJob, OtaJobStatus
 
 __all__ = [
@@ -48,5 +57,6 @@ __all__ = [
     "FirmwareStore", "FirmwareMeta",
     "SchemaError", "validate_ota_cmd", "validate_ota_data",
     "validate_ota_progress", "validate_ota_result",
+    "encode_current_state", "decode_current_state", "CURRENT_STATE_SENTINEL",
     "OtaService", "OtaJob", "OtaJobStatus",
 ]

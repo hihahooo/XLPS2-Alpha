@@ -30,6 +30,7 @@ from .schema import (
     validate_ota_data,
     validate_ota_progress,
     validate_ota_result,
+    CURRENT_STATE_SENTINEL,
 )
 from .store import FirmwareMeta, FirmwareStore
 from .topics import build_topic, parse_topic
@@ -247,8 +248,15 @@ class OtaService:
         job = self._jobs.get(dev_id)
         if not job or job.status != OtaJobStatus.WAITING_HEALTH:
             return
-        # 健康判据：is_safe=true 或 fault_level==0 视为健康
-        healthy = (msg.get("is_safe") is True) or (msg.get("fault_level") == 0) or (msg.get("current_state") not in (None, "ERROR"))
+        # 健康判据（ADR-003：current_state 为 uint16，0xFFFF=未初始化）：
+        # is_safe=true 或 fault_level==0 视为健康；current_state 为合法 uint16
+        # 且非哨兵时亦视为设备存活上报（可确认）。
+        cs = msg.get("current_state")
+        healthy = (
+            (msg.get("is_safe") is True)
+            or (msg.get("fault_level") == 0)
+            or (isinstance(cs, int) and cs != CURRENT_STATE_SENTINEL)
+        )
         if healthy:
             self._confirm(dev_id, job)
 

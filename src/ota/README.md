@@ -11,7 +11,7 @@
 - Python ≥ 3.10（`pyproject.toml`）
 - EMQX MQTT **over TLS**（`mqtts://emqx.np-xltech.com:8883`，ADR-005）
 - 客户端 `paho-mqtt`（仅运行依赖；单测用 `mqtt_adapter.InMemoryTransport`，无需 broker）
-- 物理分区 GD25Q127 ×2（A/B 双物理分区，ADR-005）
+- 物理分区 STM32H743IIT6 内部 Flash 逻辑双分区 A/B（ADR-005）
 
 ## 目录
 

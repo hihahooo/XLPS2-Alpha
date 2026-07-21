@@ -23,7 +23,7 @@ PARTITION_CAPACITY = 0x0E0000      # 单分区容量上限 ~0.9MB
 FLAG_SECTOR = 0x081E0000           # FLAG 扇区（位于 B 分区之后）
 FLAG_PRIMARY_OFFSET = 0x000        # FLAG 主备份
 FLAG_BACKUP_OFFSET = 0x200          # FLAG 备备份
-FLAG_SECTOR_SIZE = 0x1000          # GD25Q127 扇区大小 4KB
+FLAG_SECTOR_SIZE = 0x1000          # STM32H743IIT6 内部 Flash 扇区大小 4KB（ADR-005）
 
 CHUNK_SIZE = 1024                  # 分片大小（ADR-005）
 HEALTH_WINDOW_S = 300              # 健康观测窗（秒，ADR-005）

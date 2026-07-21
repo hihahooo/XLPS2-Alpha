@@ -37,9 +37,11 @@ bool ft_check_dist(ft_state_t* st, bool obstacle_now)
 
 ft_action_t ft_evaluate(ft_state_t* st, const ft_sense_t* s)
 {
-    /* ESTOP always wins (region 2 global capture) */
+    /* ESTOP always wins (region 2 global capture).
+     * ADR-006: ESTOP belongs to 三级 SLOW_STOP/ESTOP -> telemetry fault_level = 3
+     * (NOT level 4; level 4/四级 is reserved for CROSS_VERIFY). */
     if (st->estop) {
-        st->fault_level = 4;
+        st->fault_level = (uint8_t)FT_L3_SLOW_STOP;
         st->fault_code  = 0xE570u; /* ESTOP fault code (real code set by safety FSM) */
         return FT_ACT_ESTOP;
     }
@@ -51,9 +53,12 @@ ft_action_t ft_evaluate(ft_state_t* st, const ft_sense_t* s)
         return FT_ACT_STOP;
     }
     if (cv == CV_INTERFERENCE) {
-        /* single-route anomaly: continue, record for diag/learning */
+        /* single-route anomaly: still inside CROSS_VERIFY stage (ADR-006 四级).
+         * Per adjudication, fault_level reflects the ACTIVE stage = level 4,
+         * preserving traceability of which fault-tolerance phase is running.
+         * Continue driving; record the single-route glitch for diag/self-learning. */
         st->cross_verify_fault_ch++;
-        st->fault_level = 0;
+        st->fault_level = (uint8_t)FT_L4_CROSS_VERIFY;
         st->fault_code  = 0x0000u;
         return FT_ACT_CONTINUE;
     }

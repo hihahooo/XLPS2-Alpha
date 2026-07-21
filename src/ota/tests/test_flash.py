@@ -1,4 +1,4 @@
-"""InMemoryFlash 行为（模拟 GD25Q127 双芯片物理分区）。"""
+"""InMemoryFlash 行为（模拟 STM32H743 内部 Flash A/B 逻辑分区）。"""
 import pytest
 
 from ota import config
@@ -37,7 +37,7 @@ def test_erase_clears():
     assert f.read(0, 8) == b"\xff" * 8
 
 
-def test_gd25q127_geometry_constants():
+def test_flash_geometry_constants():
     assert config.FLAG_SECTOR_SIZE == 0x1000
     assert config.PARTITION_CAPACITY == 0x0E0000
 
