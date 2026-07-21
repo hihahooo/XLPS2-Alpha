@@ -1,0 +1,13 @@
+# pytest / 缓存
+.pytest-tmp*/
+.pytest_cache/
+__pycache__/
+*.pyc
+*.pyo
+
+# 运行时固件仓库（自动生成）
+store/firmware/*.bin
+store/firmware/*.meta.json
+
+# 本地联调签名密钥（生产由 KMS 托管，不入库）
+broker/ota_key.hex

@@ -1,0 +1,122 @@
+"""OTA 载荷校验（不可绕过；传输专有字段不污染 33 字段字典，ADR-006）。
+
+设计
+----
+- 33 字段统一字典是跨模块 SSOT；OTA 上报字段（ota_state / ota_progress_pct /
+  ota_active_slot / ota_target_version / ota_result）必须严格落在字典内。
+- 传输专有字段（seq / crc / signature / pending / health_deadline / 健康回执 /
+  last_seq 续传控制）**可**作为 MQTT 载荷内部字段存在（ADR-006 明确允许），
+  但**绝不**进入 33 字段字典，且须经白名单校验，杜绝任意字段注入。
+- devId 由 Topic 路径承载，**禁止**出现在 payload（治理 / ADR-002）。
+
+所有 OTA 入口处理前必须过对应 validate_*，否则抛 ``SchemaError``。
+"""
+from __future__ import annotations
+
+from typing import Any, Dict
+
+from . import config
+from .exceptions import SchemaError
+
+# 字典内 OTA 上报字段（data_dictionary.json，topic=ota/progress | ota/result）
+_PROGRESS_DICT_FIELDS = {
+    "ota_state", "ota_progress_pct", "ota_active_slot", "ota_target_version",
+}
+_RESULT_DICT_FIELDS = {"ota_result"}
+
+# 传输专有「控制」字段白名单（MQTT 载荷内部字段，不进字典，ADR-006）
+_PROGRESS_TRANSPORT_FIELDS = {"last_seq"}   # 续传控制：设备已连续收到的最高 seq
+_CMD_TRANSPORT_FIELDS = {"cmd", "target_version", "slot", "pending"}
+_DATA_TRANSPORT_FIELDS = {"total", "ftype", "version", "chunks"}
+
+_DEV_ID_KEYS = {"dev_id", "device_id", "devId", "deviceId"}
+
+
+def _reject_dev_id(payload: Dict[str, Any]) -> None:
+    for k in payload:
+        if k in _DEV_ID_KEYS:
+            raise SchemaError(f"devId 禁止进入 payload（须由 Topic 路径承载）: 字段 {k!r}")
+
+
+def _assert_dict_fields(name: str, payload: Dict[str, Any], allowed: set, transport: set) -> None:
+    for k in payload:
+        if k in allowed:
+            continue
+        if k in transport:
+            # 传输专有字段：仅允许白名单内的值，且不进入字典
+            continue
+        raise SchemaError(f"{name} 含非法字段 {k!r}（须为字典字段 {allowed} 或传输白名单 {transport}）")
+
+
+def validate_ota_cmd(payload: Dict[str, Any]) -> None:
+    """校验 ota/cmd（cloud→device 指令信封）。"""
+    if not isinstance(payload, dict):
+        raise SchemaError("ota/cmd payload 须为对象")
+    _reject_dev_id(payload)
+    cmd = payload.get("cmd")
+    if cmd not in config.OTA_CMDS:
+        raise SchemaError(f"ota/cmd.cmd 非法: {cmd!r}")
+    if cmd == config.OTA_CMD_START:
+        tv = payload.get("target_version")
+        slot = payload.get("slot")
+        if tv is None or not str(tv).isdigit():
+            raise SchemaError(f"start 须带十进制整数字符串 target_version，收到 {tv!r}")
+        if slot not in config.SLOTS:
+            raise SchemaError(f"start.slot 须为 A/B，收到 {slot!r}")
+    # 其余键必须是传输白名单
+    _assert_dict_fields("ota/cmd", payload, set(), _CMD_TRANSPORT_FIELDS)
+
+
+def validate_ota_data(payload: Dict[str, Any]) -> None:
+    """校验 ota/data（分片信封：total / ftype / version / chunks[seq,crc,chunk]）。"""
+    if not isinstance(payload, dict):
+        raise SchemaError("ota/data payload 须为对象")
+    _reject_dev_id(payload)
+    for req in ("total", "ftype", "version", "chunks"):
+        if req not in payload:
+            raise SchemaError(f"ota/data 缺字段 {req!r}")
+    if not isinstance(payload["chunks"], list):
+        raise SchemaError("ota/data.chunks 须为数组")
+    for c in payload["chunks"]:
+        for req in ("seq", "crc", "chunk"):
+            if req not in c:
+                raise SchemaError(f"ota/data chunk 缺字段 {req!r}")
+    _assert_dict_fields("ota/data", payload, set(), _DATA_TRANSPORT_FIELDS)
+
+
+def validate_ota_progress(payload: Dict[str, Any]) -> None:
+    """校验 ota/progress（字典字段 + 允许续传控制 last_seq）。"""
+    if not isinstance(payload, dict):
+        raise SchemaError("ota/progress payload 须为对象")
+    _reject_dev_id(payload)
+    if "ota_state" in payload and payload["ota_state"] not in config.OTA_STATES:
+        raise SchemaError(f"ota_state 非法: {payload['ota_state']!r}")
+    if "ota_active_slot" in payload and payload["ota_active_slot"] not in config.SLOTS:
+        raise SchemaError(f"ota_active_slot 非法: {payload['ota_active_slot']!r}")
+    if "ota_progress_pct" in payload:
+        pct = payload["ota_progress_pct"]
+        if not isinstance(pct, int) or not (0 <= pct <= 100):
+            raise SchemaError(f"ota_progress_pct 须 0-100，收到 {pct!r}")
+    if "ota_target_version" in payload and not str(payload["ota_target_version"]).isdigit():
+        raise SchemaError("ota_target_version 须为十进制整数字符串")
+    if "last_seq" in payload and (not isinstance(payload["last_seq"], int) or payload["last_seq"] < 0):
+        raise SchemaError("last_seq 须为非负整数（续传控制）")
+    _assert_dict_fields("ota/progress", payload, _PROGRESS_DICT_FIELDS, _PROGRESS_TRANSPORT_FIELDS)
+
+
+def validate_ota_result(payload: Dict[str, Any]) -> None:
+    """校验 ota/result（ota_result ∈ {ok,fail,rollback}）。"""
+    if not isinstance(payload, dict):
+        raise SchemaError("ota/result payload 须为对象")
+    _reject_dev_id(payload)
+    res = payload.get("ota_result")
+    if res not in config.OTA_RESULTS:
+        raise SchemaError(f"ota_result 非法: {res!r}")
+    _assert_dict_fields("ota/result", payload, _RESULT_DICT_FIELDS, set())
+
+
+def assert_transport_isolation(dictionary_fields: set) -> None:
+    """SSOT 一致性自检：传输专有字段不得出现在 33 字段字典里。"""
+    leaked = config.TRANSPORT_PRIVATE_FIELDS & dictionary_fields
+    if leaked:
+        raise SchemaError(f"传输专有字段泄漏进数据字典: {leaked}")
